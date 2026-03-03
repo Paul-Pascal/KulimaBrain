@@ -1,92 +1,157 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import glob
 import os
 import numpy as np
+from datetime import datetime, timedelta
+import requests_cache
+from retry_requests import retry
+import openmeteo_requests
 
-# Load models (from your GitHub-style path)
+# ----------------------------
+# 1. Load Models
+# ----------------------------
 models = {}
+feature_cols = {}
+
 for crop in ["maize", "beans"]:
-    path = f"models/saved/{crop}_model.pkl"
+    path = f"models/saved/{crop}_doy_model.pkl"
     if os.path.exists(path):
         with open(path, "rb") as f:
-            models[crop] = pickle.load(f)
-        st.write(f"✅ Loaded {crop} model")
+            data = pickle.load(f)
+            models[crop] = data['model']
+            feature_cols[crop] = data['features']
+        st.write(f"✅ Loaded {crop} DOY model")
     else:
         st.warning(f"⚠️ Model missing: {path}")
 
-# Load district list from your CSV (real data)
-data_path = "/content/drive/MyDrive/KulimaBrain/"
-
-
-files = glob.glob(os.path.join(data_path, "Uganda_Climate_*.csv"))
-
-if len(files) == 0:
-    raise ValueError(f"No CSV files found in {data_path}")
-
-
-df_list = [pd.read_csv(f) for f in files]
-climate_df = pd.concat(df_list, ignore_index=True)
-# # Fix column names — your CSV has NO header, so we assign them explicitly
-# climate_df.columns = ["ADM2_NAME", "date", "precipitation_mm", "temperature_c", "dewpoint_c"]
-climate_df['date'] = pd.to_datetime(climate_df['date'])
-
-DISTRICTS = sorted(climate_df['ADM2_NAME'].unique().tolist())
-
-# Advice templates
-ADVICE_TEMPLATES = {
-    "plant_now": "✅ Good time to plant {crop}! Recent rain ({rain:.1f}mm) and warm soil.",
-    "plant_but_prepare_for_dry_spell": "🌱 Plant {crop} now, but prepare for dry spell in next week.",
-    "delay_planting_drought": "⚠️ Delay planting {crop} — drought conditions expected.",
-    "monitor_conditions": "🔍 Keep monitoring {crop} — no clear signal yet."
+# ----------------------------
+# 2. District Coordinates
+# ----------------------------
+DISTRICT_COORDS = {
+    "Abim": (2.7833, 33.8333),
+    "Adjumani": (3.3833, 31.7833),
+    # ... (your full list here - keep it)
+    "Wakiso": (0.3833, 32.4667),
+    "Yumbe": (3.4833, 31.2833),
+    "Zombo": (3.2833, 30.7833)
 }
 
-st.title("🌱 AgriConsult Uganda: Farming Advisor")
-st.markdown("Get AI-powered planting advice based on real weather data.")
+DISTRICTS = sorted(DISTRICT_COORDS.keys())
+
+st.title("🌱 AgriConsult Uganda: KulimaBrain")
+st.markdown("Predicts planting day using climate trends + live weather.")
 
 col1, col2, col3 = st.columns(3)
 with col1:
     district = st.selectbox("District", DISTRICTS)
 with col2:
-    date = st.date_input("Date", value=pd.to_datetime("2025-03-10"))
+    target_date = st.date_input("Target Year", value=datetime.today())
 with col3:
     crop = st.selectbox("Crop", list(models.keys()))
 
 if st.button("Get Advice"):
     if crop not in models:
         st.error("Model not loaded.")
+        st.stop()
+
+    target_year = target_date.year
+    current_date = pd.to_datetime(datetime.today())
+
+    # Get coordinates
+    if district not in DISTRICT_COORDS:
+        st.error(f"Coordinates not available for {district}")
+        st.stop()
+    lat, lon = DISTRICT_COORDS[district]
+
+    # ----------------------------
+    # 3. Get Real Weather Context from Open-Meteo
+    # ----------------------------
+    try:
+        cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
+        retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+        openmeteo = openmeteo_requests.Client(session=retry_session)
+
+        # Get recent weather (last 30 days) to estimate current conditions
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "daily": ["precipitation_sum", "temperature_2m_min"],
+            "past_days": 30,
+            "forecast_days": 0,
+            "timezone": "Africa/Kampala"
+        }
+        responses = openmeteo.weather_api(url, params=params)
+        response = responses[0]
+        daily = response.Daily()
+        precip = daily.Variables(0).ValuesAsNumpy()
+        temp_min = daily.Variables(1).ValuesAsNumpy()
+
+        # Estimate features
+        rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
+        min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
+
+        # Simulate dry days in next 7 days (use climatology if needed)
+        dry_days_next_7 = 2
+
+    except Exception as e:
+        st.warning(f"Using default weather: {e}")
+        rain_3d = 25.0
+        min_temp_3d = 16.0
+        dry_days_next_7 = 2
+
+    # ----------------------------
+    # 4. Predict Planting DOY Using Model
+    # ----------------------------
+    month_guess = 3  # default to March
+    features = [[target_year, month_guess, rain_3d, min_temp_3d, dry_days_next_7]]
+    predicted_doy = int(models[crop].predict(features)[0])
+    predicted_doy = max(30, min(330, predicted_doy))  # clamp to reasonable range
+
+    predicted_date = pd.Timestamp(f"{target_year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
+
+    st.info(f"📅 Model predicts planting around {predicted_date.strftime('%B %d')}")
+
+    # ----------------------------
+    # 5. Refine with Open-Meteo (if near-term)
+    # ----------------------------
+    days_diff = (predicted_date - current_date).days
+    if -7 <= days_diff <= 14:
+        st.info("📡 Refining with Open-Meteo forecast...")
+
+        try:
+            # Get 14-day forecast around predicted date
+            start_forecast = predicted_date - pd.Timedelta(days=7)
+            end_forecast = predicted_date + pd.Timedelta(days=7)
+
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "daily": ["precipitation_sum"],
+                "start_date": start_forecast.strftime("%Y-%m-%d"),
+                "end_date": end_forecast.strftime("%Y-%m-%d"),
+                "timezone": "Africa/Kampala"
+            }
+
+            responses = openmeteo.weather_api(url, params=params)
+            response = responses[0]
+            daily = response.Daily()
+            precip = daily.Variables(0).ValuesAsNumpy()
+
+            # Find first suitable day
+            final_date = predicted_date
+            for i in range(2, len(precip)):
+                if np.sum(precip[i-2:i+1]) >= 25:
+                    final_date = start_forecast + pd.Timedelta(days=i)
+                    break
+
+            st.success(f"✅ Plant {crop} on {final_date.strftime('%Y-%m-%d')}")
+            st.info(f"📍 {district} | 🌾 {crop}")
+        except Exception as e:
+            st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
+            st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
     else:
-        # Get past 30 days of observed weather for this district
-        current_date = pd.to_datetime(date)
-        district_data = climate_df[climate_df['ADM2_NAME'] == district].copy()
-        start_date = current_date - pd.Timedelta(days=30)
-        past_30d = district_data[
-            (district_data['date'] >= start_date) & 
-            (district_data['date'] <= current_date)
-        ].sort_values('date')
-        
-        if len(past_30d) < 3:
-            st.warning("⚠️ Not enough historical data for this district.")
-        else:
-            # Compute features (same as training)
-            last_3d = past_30d.tail(3)
-            rain_3d = last_3d['precipitation_mm'].sum()
-            min_temp = last_3d['temperature_c'].min()
-            avg_dew = past_30d['dewpoint_c'].mean()
-            
-            # Simulate forecast dry days (replace with Open-Meteo later)
-            dry_days = 2  # placeholder — safe default
-            
-            # Predict using your trained model
-            features = [[rain_3d, min_temp, avg_dew, dry_days]]
-            pred_label = models[crop].predict(features)[0]
-            
-            # Extract base action (e.g., "plant_now_maize" → "plant_now")
-            base_action = "_".join(pred_label.split("_")[:-1])
-            advice = ADVICE_TEMPLATES.get(base_action, "❓ Unknown advice.").format(
-                crop=crop, rain=rain_3d
-            )
-            
-            st.success(advice)
-            st.info(f"📍 {district} | 📅 {date} | 🌾 {crop} | Rain: {rain_3d:.1f}mm")
+        st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+        st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
