@@ -17,8 +17,8 @@ def load_model_from_url(url):
         return None
 
 
-MAIZE_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/maize_doy_model.joblib"
-BEANS_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/beans_doy_model.joblib"
+MAIZE_MODEL_URL = "sha256:802ab334de6a520b6d43285ce395f1d911e5709871ed611c3fb5f7607e750ecb"
+BEANS_MODEL_URL = "sha256:25a977bf7857c68214a54bbaca5f4edb6ac83b1985b3792d9486e15d51b31a14"
 
 models = {}
 feature_cols = {}
