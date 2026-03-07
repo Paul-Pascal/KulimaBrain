@@ -8,7 +8,7 @@ import requests
 from io import BytesIO
 
 def load_model_from_drive(file_id):
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    url = f"https://drive.google.com/drive/folders/1xf-pcNri5j-mF3-11BKXmXBBR0g6JAbD?usp=sharing"
     response = requests.get(url)
     if response.status_code == 200:
         return joblib.load(BytesIO(response.content))
