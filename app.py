@@ -269,9 +269,9 @@ if st.button("Get Advice"):
 
     #         st.success(f"✅ Plant {crop} on {final_date.strftime('%Y-%m-%d')}")
     #         st.info(f"📍 {district} | 🌾 {crop}")
-        except Exception as e:
-            st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
-            st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+        # except Exception as e:
+        #     st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
+        #     st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
     else:
         st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
         st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
