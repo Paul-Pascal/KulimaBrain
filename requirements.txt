@@ -5,6 +5,3 @@ scikit-learn
 openmeteo-requests
 requests-cache
 retry-requests
-os
-pickle
-datetime
