@@ -6,9 +6,7 @@ from datetime import datetime
 import requests
 from io import BytesIO
 
-# =============================
-# 🔒 Load models ONCE using cache
-# =============================
+
 @st.cache_resource
 def load_models():
     MAIZE_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/maize_doy_model.joblib"
@@ -26,9 +24,7 @@ def load_models():
 
 models = load_models()
 
-# =============================
-# 🌍 District Coordinates
-# =============================
+
 DISTRICT_COORDS = {
     "Abim": (2.7833, 33.8333),
     "Adjumani": (3.3833, 31.7833),
@@ -159,9 +155,7 @@ DISTRICT_COORDS = {
 
 DISTRICTS = sorted(DISTRICT_COORDS.keys())
 
-# =============================
-# 🎯 UI
-# =============================
+
 st.title("🌱 AgroConsult Uganda: KulimaBrain")
 st.markdown("Taking Uganda's Agriculture to greater heights.")
 
@@ -173,9 +167,7 @@ with col2:
 with col3:
     crop = st.selectbox("Crop", list(models.keys()))
 
-# =============================
-# 💡 Prediction Logic (with Open-Meteo)
-# =============================
+
 if st.button("Get Advice"):
     if crop not in models:
         st.error("Model not loaded.")
@@ -189,7 +181,7 @@ if st.button("Get Advice"):
         st.stop()
     lat, lon = DISTRICT_COORDS[district]
 
-    # Default values
+    
     rain_3d = 25.0
     min_temp_3d = 16.0
     dry_days_next_7 = 2
