@@ -3,6 +3,6 @@ scikit-learn
 joblib
 pandas
 numpy
-openmeteo-requests
-requests-cache
-retry-requests
+openmeteo_requests
+requests_cache
+retry_requests
