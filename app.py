@@ -186,25 +186,25 @@ with col3:
 # 💡 Prediction (Minimal & Safe)
 # =============================
 if st.button("Get Advice"):
+    st.write("🔍 Step 1: Button clicked")
+    
     if crop not in models:
         st.error("Model not available.")
-    else:
-        try:
-            # Use actual month from date
-            features = [[
-                int(target_date.year),
-                int(target_date.month),
-                25.0,   # rain_3d (default)
-                16.0,   # min_temp_3d (default)
-                2.0     # dry_days_next_7 (default)
-            ]]
-            
-            predicted_doy = int(models[crop].predict(features)[0])
-            predicted_doy = int(np.clip(predicted_doy, 30, 330))
-            predicted_date = pd.Timestamp(f"{target_date.year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
-            
-            st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
-            st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
-            
-        except Exception as e:
-            st.error(f"Prediction failed: {str(e)}")
+        st.stop()
+    
+    st.write("🔍 Step 2: Model found")
+    
+    try:
+        features = [[int(target_date.year), int(target_date.month), 25.0, 16.0, 2.0]]
+        st.write("🔍 Step 3: Features built")
+        
+        pred = models[crop].predict(features)
+        st.write("🔍 Step 4: Prediction successful:", pred)
+        
+        predicted_doy = int(np.clip(pred[0], 30, 330))
+        predicted_date = pd.Timestamp(f"{target_date.year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
+        
+        st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+        
+    except Exception as e:
+        st.error(f"💥 Error: {str(e)}")
