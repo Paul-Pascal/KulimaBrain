@@ -4,9 +4,6 @@ import pickle
 import os
 import numpy as np
 from datetime import datetime, timedelta
-import requests_cache
-from retry_requests import retry
-import openmeteo_requests
 
 models = {}
 feature_cols = {}
@@ -181,6 +178,9 @@ if st.button("Get Advice"):
 
 
     try:
+        import requests_cache
+        from retry_requests import retry
+        import openmeteo_requests
         cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
