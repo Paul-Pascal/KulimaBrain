@@ -238,40 +238,40 @@ if st.button("Get Advice"):
         st.error(f"Model prediction failed: {str(e)}")
         st.stop()
 
-    # days_diff = (predicted_date - current_date).days
-    # if -7 <= days_diff <= 14:
-    #     st.info("📡 Refining with Open-Meteo forecast...")
+    days_diff = (predicted_date - current_date).days
+    if -7 <= days_diff <= 14:
+        st.info("📡 Refining with Open-Meteo forecast...")
 
-    #     try:
-    #         start_forecast = predicted_date - pd.Timedelta(days=7)
-    #         end_forecast = predicted_date + pd.Timedelta(days=7)
+        try:
+            start_forecast = predicted_date - pd.Timedelta(days=7)
+            end_forecast = predicted_date + pd.Timedelta(days=7)
 
-    #         url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
-    #         params = {
-    #             "latitude": lat,
-    #             "longitude": lon,
-    #             "daily": ["precipitation_sum"],
-    #             "start_date": start_forecast.strftime("%Y-%m-%d"),
-    #             "end_date": end_forecast.strftime("%Y-%m-%d"),
-    #             "timezone": "Africa/Kampala"
-    #         }
+            url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "daily": ["precipitation_sum"],
+                "start_date": start_forecast.strftime("%Y-%m-%d"),
+                "end_date": end_forecast.strftime("%Y-%m-%d"),
+                "timezone": "Africa/Kampala"
+            }
 
-    #         responses = openmeteo.weather_api(url, params=params)
-    #         response = responses[0]
-    #         daily = response.Daily()
-    #         precip = daily.Variables(0).ValuesAsNumpy()
+            responses = openmeteo.weather_api(url, params=params)
+            response = responses[0]
+            daily = response.Daily()
+            precip = daily.Variables(0).ValuesAsNumpy()
 
-    #         final_date = predicted_date
-    #         for i in range(2, len(precip)):
-    #             if np.sum(precip[i-2:i+1]) >= 25:
-    #                 final_date = start_forecast + pd.Timedelta(days=i)
-    #                 break
+            final_date = predicted_date
+            for i in range(2, len(precip)):
+                if np.sum(precip[i-2:i+1]) >= 25:
+                    final_date = start_forecast + pd.Timedelta(days=i)
+                    break
 
-    #         st.success(f"✅ Plant {crop} on {final_date.strftime('%Y-%m-%d')}")
-    #         st.info(f"📍 {district} | 🌾 {crop}")
-        # except Exception as e:
-        #     st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
-        #     st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+            st.success(f"✅ Plant {crop} on {final_date.strftime('%Y-%m-%d')}")
+            st.info(f"📍 {district} | 🌾 {crop}")
+        except Exception as e:
+            st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
+            st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
     else:
         st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
         st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
