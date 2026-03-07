@@ -187,40 +187,40 @@ if st.button("Get Advice"):
     dry_days_next_7 = 2
 
     def get_weather_from_openmeteo(lat, lon):
-    try:
-        import openmeteo_requests
-        import requests_cache
-        from retry_requests import retry
-
-        cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
-        retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-        openmeteo = openmeteo_requests.Client(session=retry_session)
-
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-            "latitude": lat,
-            "longitude": lon,
-            "daily": ["precipitation_sum", "temperature_2m_min"],
-            "past_days": 30,
-            "forecast_days": 0,
-            "timezone": "Africa/Kampala"
-        }
-        responses = openmeteo.weather_api(url, params=params)
-        response = responses[0]
-        daily = response.Daily()
-        precip = daily.Variables(0).ValuesAsNumpy()
-        temp_min = daily.Variables(1).ValuesAsNumpy()
-
-        rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
-        min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
-        return float(rain_3d), float(min_temp_3d)
-    except Exception as e:
-        st.warning(f"Open-Meteo failed: {type(e).__name__}: {e}")
-        return 25.0, 16.0 
-
-
-rain_3d, min_temp_3d = get_weather_from_openmeteo(lat, lon)
-dry_days_next_7 = 2
+         try:
+            import openmeteo_requests
+            import requests_cache
+            from retry_requests import retry
+    
+            cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
+            retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+            openmeteo = openmeteo_requests.Client(session=retry_session)
+    
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "daily": ["precipitation_sum", "temperature_2m_min"],
+                "past_days": 30,
+                "forecast_days": 0,
+                "timezone": "Africa/Kampala"
+            }
+            responses = openmeteo.weather_api(url, params=params)
+            response = responses[0]
+            daily = response.Daily()
+            precip = daily.Variables(0).ValuesAsNumpy()
+            temp_min = daily.Variables(1).ValuesAsNumpy()
+    
+            rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
+            min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
+            return float(rain_3d), float(min_temp_3d)
+        except Exception as e:
+            st.warning(f"Open-Meteo failed: {type(e).__name__}: {e}")
+            return 25.0, 16.0 
+    
+    
+    rain_3d, min_temp_3d = get_weather_from_openmeteo(lat, lon)
+    dry_days_next_7 = 2
 
     try:
         predicted_doy = int(models[crop].predict(features)[0])
