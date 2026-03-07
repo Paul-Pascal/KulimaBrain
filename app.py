@@ -194,7 +194,7 @@ if st.button("Get Advice"):
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
 
-        url = "https://api.open-meteo.com/v1/forecast"
+        url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -211,7 +211,6 @@ if st.button("Get Advice"):
 
         rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
         min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
-
         dry_days_next_7 = 2
 
     except Exception as e:
@@ -220,14 +219,24 @@ if st.button("Get Advice"):
         min_temp_3d = 16.0
         dry_days_next_7 = 2
 
+    # Ensure all features are native Python types (critical for joblib models)
     month_guess = 3
-    features = [[target_year, month_guess, rain_3d, min_temp_3d, dry_days_next_7]]
-    predicted_doy = int(models[crop].predict(features)[0])
-    predicted_doy = max(30, min(330, predicted_doy))
+    features = [[
+        int(target_year),
+        int(month_guess),
+        float(rain_3d),
+        float(min_temp_3d),
+        float(dry_days_next_7)
+    ]]
 
-    predicted_date = pd.Timestamp(f"{target_year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
-
-    st.info(f"📅 Model predicts planting around {predicted_date.strftime('%B %d')}")
+    try:
+        predicted_doy = int(models[crop].predict(features)[0])
+        predicted_doy = max(30, min(330, predicted_doy))
+        predicted_date = pd.Timestamp(f"{target_year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
+        st.info(f"📅 Model predicts planting around {predicted_date.strftime('%B %d')}")
+    except Exception as e:
+        st.error(f"Model prediction failed: {str(e)}")
+        st.stop()
 
     days_diff = (predicted_date - current_date).days
     if -7 <= days_diff <= 14:
@@ -237,7 +246,7 @@ if st.button("Get Advice"):
             start_forecast = predicted_date - pd.Timedelta(days=7)
             end_forecast = predicted_date + pd.Timedelta(days=7)
 
-            url = "https://api.open-meteo.com/v1/forecast"
+            url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
             params = {
                 "latitude": lat,
                 "longitude": lon,
