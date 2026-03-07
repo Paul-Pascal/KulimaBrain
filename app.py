@@ -4,21 +4,31 @@ import joblib
 import os
 import numpy as np
 from datetime import datetime, timedelta
+import requests
+from io import BytesIO
+
+def load_model_from_drive(file_id):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return joblib.load(BytesIO(response.content))
+    else:
+        return None
+
+MAIZE_FILE_ID = "1DzmWdm1dpcguXWZ4Z3KY8B5b44F9egaS"
+BEANS_FILE_ID = "1RZB9ZKZ-J6ql4Tect_Fk413kmhKpWrkf"
 
 models = {}
 feature_cols = {}
 
 for crop in ["maize", "beans"]:
-    path = f"models/saved/{crop}_doy_model.pkl"
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            data = joblib.load(f)
-            models[crop] = data['model']
-            feature_cols[crop] = data['features']
-       # st.write(f"✅ Loaded {crop} DOY model")
+    file_id = MAIZE_FILE_ID if crop == "maize" else BEANS_FILE_ID
+    data = load_model_from_drive(file_id)
+    if data is not None:
+        models[crop] = data['model']
+        feature_cols[crop] = data['features']
     else:
-        st.warning(f"⚠️ Model missing: {path}")
-
+        st.warning(f"⚠️ Failed to load {crop} model from Google Drive")
 
 DISTRICT_COORDS = {
     "Abim": (2.7833, 33.8333),
@@ -146,7 +156,6 @@ DISTRICT_COORDS = {
     "Wakiso": (0.3833, 32.4667),
     "Yumbe": (3.4833, 31.2833),
     "Zombo": (3.2833, 30.7833)
-
 }
 
 DISTRICTS = sorted(DISTRICT_COORDS.keys())
@@ -170,12 +179,10 @@ if st.button("Get Advice"):
     target_year = target_date.year
     current_date = pd.to_datetime(datetime.today())
 
-
     if district not in DISTRICT_COORDS:
         st.error(f"Coordinates not available for {district}")
         st.stop()
     lat, lon = DISTRICT_COORDS[district]
-
 
     try:
         import requests_cache
@@ -184,7 +191,6 @@ if st.button("Get Advice"):
         cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
-
 
         url = "https://api.open-meteo.com/v1/forecast"
         params = {
@@ -201,10 +207,8 @@ if st.button("Get Advice"):
         precip = daily.Variables(0).ValuesAsNumpy()
         temp_min = daily.Variables(1).ValuesAsNumpy()
 
-
         rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
         min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
-
 
         dry_days_next_7 = 2
 
@@ -213,7 +217,6 @@ if st.button("Get Advice"):
         rain_3d = 25.0
         min_temp_3d = 16.0
         dry_days_next_7 = 2
-
 
     month_guess = 3
     features = [[target_year, month_guess, rain_3d, min_temp_3d, dry_days_next_7]]
@@ -229,7 +232,6 @@ if st.button("Get Advice"):
         st.info("📡 Refining with Open-Meteo forecast...")
 
         try:
-
             start_forecast = predicted_date - pd.Timedelta(days=7)
             end_forecast = predicted_date + pd.Timedelta(days=7)
 
@@ -247,7 +249,6 @@ if st.button("Get Advice"):
             response = responses[0]
             daily = response.Daily()
             precip = daily.Variables(0).ValuesAsNumpy()
-
 
             final_date = predicted_date
             for i in range(2, len(precip)):
