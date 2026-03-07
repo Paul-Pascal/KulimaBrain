@@ -7,23 +7,25 @@ from datetime import datetime, timedelta
 import requests
 from io import BytesIO
 
-def load_model_from_drive(file_id):
-    url = f"https://drive.google.com/drive/folders/1xf-pcNri5j-mF3-11BKXmXBBR0g6JAbD?usp=sharing"
-    response = requests.get(url)
-    if response.status_code == 200:
+def load_model_from_url(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
         return joblib.load(BytesIO(response.content))
-    else:
+    except Exception as e:
+        st.error(f"Failed to load model from {url}: {str(e)}")
         return None
 
-MAIZE_FILE_ID = "1DzmWdm1dpcguXWZ4Z3KY8B5b44F9egaS"
-BEANS_FILE_ID = "1RZB9ZKZ-J6ql4Tect_Fk413kmhKpWrkf"
+
+MAIZE_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/maize_doy_model.joblib"
+BEANS_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/beans_doy_model.joblib"
 
 models = {}
 feature_cols = {}
 
 for crop in ["maize", "beans"]:
-    file_id = MAIZE_FILE_ID if crop == "maize" else BEANS_FILE_ID
-    data = load_model_from_drive(file_id)
+    file_url = MAIZE_FILE_URL if crop == "maize" else BEANS_FILE_URL
+    data = load_model_from_drive(file_url)
     if data is not None:
         models[crop] = data['model']
         feature_cols[crop] = data['features']
