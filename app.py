@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import requests
 from io import BytesIO
 
+
 def load_model_from_url(url):
     try:
         response = requests.get(url)
@@ -32,6 +33,15 @@ for crop in ["maize", "beans"]:
     else:
         st.warning(f"⚠️ Failed to load {crop} model from url")
 
+# DEBUG: Test model immediately on startup
+try:
+    test_features = [[2025, 3, 25.0, 16.0, 2.0]]
+    test_pred = models["maize"].predict(test_features)
+    st.write("✅ Model loaded and prediction works:", int(test_pred[0]))
+except Exception as e:
+    st.error(f"🚨 Model failed at startup: {e}")
+    st.stop()
+    
 DISTRICT_COORDS = {
     "Abim": (2.7833, 33.8333),
     "Adjumani": (3.3833, 31.7833),
