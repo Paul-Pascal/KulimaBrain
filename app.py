@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import pickle
+import joblib
 import os
 import numpy as np
 from datetime import datetime, timedelta
@@ -12,7 +12,7 @@ for crop in ["maize", "beans"]:
     path = f"models/saved/{crop}_doy_model.pkl"
     if os.path.exists(path):
         with open(path, "rb") as f:
-            data = pickle.load(f)
+            data = joblib.load(f)
             models[crop] = data['model']
             feature_cols[crop] = data['features']
        # st.write(f"✅ Loaded {crop} DOY model")
