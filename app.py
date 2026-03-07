@@ -1,47 +1,43 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import os
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 from io import BytesIO
 
-
+# =============================
+# 🔒 Load models from GitHub Releases
+# =============================
 def load_model_from_url(url):
     try:
         response = requests.get(url)
         response.raise_for_status()
         return joblib.load(BytesIO(response.content))
     except Exception as e:
-        st.error(f"Failed to load model from {url}: {str(e)}")
+        st.error(f"Failed to load model: {str(e)}")
         return None
 
-
+# ⚠️ Remove trailing spaces in URLs!
 MAIZE_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/maize_doy_model.joblib"
 BEANS_MODEL_URL = "https://github.com/Paul-Pascal/KulimaBrain/releases/download/v1.0/beans_doy_model.joblib"
 
 models = {}
-feature_cols = {}
-
 for crop in ["maize", "beans"]:
-    file_url = MAIZE_MODEL_URL if crop == "maize" else BEANS_MODEL_URL
-    data = load_model_from_url(file_url)
+    url = MAIZE_MODEL_URL if crop == "maize" else BEANS_MODEL_URL
+    data = load_model_from_url(url)
     if data is not None:
         models[crop] = data['model']
-        feature_cols[crop] = data['features']
     else:
-        st.warning(f"⚠️ Failed to load {crop} model from url")
+        st.warning(f"⚠️ Failed to load {crop} model")
 
-# DEBUG: Test model immediately on startup
-try:
-    test_features = [[2025, 3, 25.0, 16.0, 2.0]]
-    test_pred = models["maize"].predict(test_features)
-    st.write("✅ Model loaded and prediction works:", int(test_pred[0]))
-except Exception as e:
-    st.error(f"🚨 Model failed at startup: {e}")
+# Early exit if no models
+if not models:
     st.stop()
-    
+
+# =============================
+# 🌍 District Coordinates
+# =============================
 DISTRICT_COORDS = {
     "Abim": (2.7833, 33.8333),
     "Adjumani": (3.3833, 31.7833),
@@ -172,6 +168,9 @@ DISTRICT_COORDS = {
 
 DISTRICTS = sorted(DISTRICT_COORDS.keys())
 
+# =============================
+# 🎯 UI
+# =============================
 st.title("🌱 AgroConsult Uganda: KulimaBrain")
 st.markdown("Taking Uganda's Agriculture to greater heights.")
 
@@ -179,124 +178,33 @@ col1, col2, col3 = st.columns(3)
 with col1:
     district = st.selectbox("District", DISTRICTS)
 with col2:
-    target_date = st.date_input("Target Year", value=datetime.today())
+    target_date = st.date_input("Target Date", value=datetime.today())
 with col3:
     crop = st.selectbox("Crop", list(models.keys()))
 
-# if st.button("Get Advice"):
-#     if crop not in models:
-#         st.error("Model not loaded.")
-#         st.stop()
-
-#     target_year = target_date.year
-#     current_date = pd.to_datetime(datetime.today())
-
-#     if district not in DISTRICT_COORDS:
-#         st.error(f"Coordinates not available for {district}")
-#         st.stop()
-#     lat, lon = DISTRICT_COORDS[district]
-
-#     try:
-#         import requests_cache
-#         from retry_requests import retry
-#         import openmeteo_requests
-#         cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
-#         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-#         openmeteo = openmeteo_requests.Client(session=retry_session)
-
-#         url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
-#         params = {
-#             "latitude": lat,
-#             "longitude": lon,
-#             "daily": ["precipitation_sum", "temperature_2m_min"],
-#             "past_days": 30,
-#             "forecast_days": 0,
-#             "timezone": "Africa/Kampala"
-#         }
-#         responses = openmeteo.weather_api(url, params=params)
-#         response = responses[0]
-#         daily = response.Daily()
-#         precip = daily.Variables(0).ValuesAsNumpy()
-#         temp_min = daily.Variables(1).ValuesAsNumpy()
-
-#         rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
-#         min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
-#         dry_days_next_7 = 2
-
-#     except Exception as e:
-#         st.warning(f"Using default weather: {e}")
-#         rain_3d = 25.0
-#         min_temp_3d = 16.0
-#         dry_days_next_7 = 2
-
-    
-#     month_guess = 3
-#     features = [[
-#         int(target_year),
-#         int(month_guess),
-#         float(rain_3d),
-#         float(min_temp_3d),
-#         float(dry_days_next_7)
-#     ]]
-
-#     try:
-#         predicted_doy = int(models[crop].predict(features)[0])
-#         predicted_doy = max(30, min(330, predicted_doy))
-#         predicted_date = pd.Timestamp(f"{target_year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
-#         st.info(f"📅 Model predicts planting around {predicted_date.strftime('%B %d')}")
-#     except Exception as e:
-#         st.error(f"Model prediction failed: {str(e)}")
-#         st.stop()
-
-#     days_diff = (predicted_date - current_date).days
-#     if -7 <= days_diff <= 14:
-#         st.info("📡 Refining with Open-Meteo forecast...")
-
-#         try:
-#             start_forecast = predicted_date - pd.Timedelta(days=7)
-#             end_forecast = predicted_date + pd.Timedelta(days=7)
-
-#             url = "https://api.open-meteo.com/v1/forecast"  # ← Removed trailing spaces!
-#             params = {
-#                 "latitude": lat,
-#                 "longitude": lon,
-#                 "daily": ["precipitation_sum"],
-#                 "start_date": start_forecast.strftime("%Y-%m-%d"),
-#                 "end_date": end_forecast.strftime("%Y-%m-%d"),
-#                 "timezone": "Africa/Kampala"
-#             }
-
-#             responses = openmeteo.weather_api(url, params=params)
-#             response = responses[0]
-#             daily = response.Daily()
-#             precip = daily.Variables(0).ValuesAsNumpy()
-
-#             final_date = predicted_date
-#             for i in range(2, len(precip)):
-#                 if np.sum(precip[i-2:i+1]) >= 25:
-#                     final_date = start_forecast + pd.Timedelta(days=i)
-#                     break
-
-#             st.success(f"✅ Plant {crop} on {final_date.strftime('%Y-%m-%d')}")
-#             st.info(f"📍 {district} | 🌾 {crop}")
-#         except Exception as e:
-#             st.warning(f"Open-Meteo refinement failed: {e}. Using model prediction.")
-#             st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
-#     else:
-#         st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
-#         st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
-
-
+# =============================
+# 💡 Prediction (Minimal & Safe)
+# =============================
 if st.button("Get Advice"):
-    # Skip all Open-Meteo code
-    rain_3d = 25.0
-    min_temp_3d = 16.0
-    dry_days_next_7 = 2
-    month_guess = 3
-    features = [[int(target_date.year), int(month_guess), float(rain_3d), float(min_temp_3d), float(dry_days_next_7)]]
-    
-    predicted_doy = int(models[crop].predict(features)[0])
-    predicted_doy = max(30, min(330, predicted_doy))
-    predicted_date = pd.Timestamp(f"{target_date.year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
-    
-    st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+    if crop not in models:
+        st.error("Model not available.")
+    else:
+        try:
+            # Use actual month from date
+            features = [[
+                int(target_date.year),
+                int(target_date.month),
+                25.0,   # rain_3d (default)
+                16.0,   # min_temp_3d (default)
+                2.0     # dry_days_next_7 (default)
+            ]]
+            
+            predicted_doy = int(models[crop].predict(features)[0])
+            predicted_doy = int(np.clip(predicted_doy, 30, 330))
+            predicted_date = pd.Timestamp(f"{target_date.year}-01-01") + pd.Timedelta(days=predicted_doy - 1)
+            
+            st.success(f"✅ Plant {crop} around {predicted_date.strftime('%Y-%m-%d')}")
+            st.info(f"📍 {district} | 🌾 {crop} | Based on climate trends")
+            
+        except Exception as e:
+            st.error(f"Prediction failed: {str(e)}")
