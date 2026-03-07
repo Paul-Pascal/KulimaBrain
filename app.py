@@ -186,6 +186,12 @@ if st.button("Get Advice"):
     min_temp_3d = 16.0
     dry_days_next_7 = 2
 
+    
+    import urllib3
+    if hasattr(urllib3.Retry, 'method_whitelist'):
+        
+        if not hasattr(urllib3.Retry, 'allowed_methods'):
+            urllib3.Retry.allowed_methods = urllib3.Retry.method_whitelist
     def get_weather_from_openmeteo(lat, lon):
          try:
             import openmeteo_requests
