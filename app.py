@@ -30,7 +30,7 @@ for crop in ["maize", "beans"]:
         models[crop] = data['model']
         feature_cols[crop] = data['features']
     else:
-        st.warning(f"⚠️ Failed to load {crop} model from Google Drive")
+        st.warning(f"⚠️ Failed to load {crop} model from url")
 
 DISTRICT_COORDS = {
     "Abim": (2.7833, 33.8333),
