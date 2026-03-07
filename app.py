@@ -24,7 +24,7 @@ models = {}
 feature_cols = {}
 
 for crop in ["maize", "beans"]:
-    file_url = MAIZE_FILE_URL if crop == "maize" else BEANS_FILE_URL
+    file_url = MAIZE_MODEL_URL if crop == "maize" else BEANS_MODEL_URL
     data = load_model_from_drive(file_url)
     if data is not None:
         models[crop] = data['model']
