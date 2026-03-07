@@ -218,7 +218,7 @@ if st.button("Get Advice"):
             rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
             min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
         except Exception as e:
-        st.warning(f"Using default weather: {e}")
+            st.warning(f"Using default weather: {e}")
 
     month_guess = 3
     features = [[
