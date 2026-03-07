@@ -214,7 +214,7 @@ if st.button("Get Advice"):
             rain_3d = np.sum(precip[-3:]) if len(precip) >= 3 else 25.0
             min_temp_3d = np.min(temp_min[-3:]) if len(temp_min) >= 3 else 16.0
             return float(rain_3d), float(min_temp_3d)
-        except Exception as e:
+         except Exception as e:
             st.warning(f"Open-Meteo failed: {type(e).__name__}: {e}")
             return 25.0, 16.0 
     
