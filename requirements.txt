@@ -1,7 +1,7 @@
 streamlit
-pandas
-numpy
-scikit-learn==1.6.1 
+scikit-learn==1.6.1
+numpy==1.23.5
+pandas==2.0.3
 openmeteo-requests
 requests-cache
 retry-requests
