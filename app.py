@@ -223,10 +223,10 @@ if st.button("Get Advice"):
     except Exception as e:
         st.warning(f"Using default weather: {e}")
 
-    month_guess = 3
+    target_month = target_date.month
     features = [[
         int(target_year),
-        int(month_guess),
+        int(target_month),
         float(rain_3d),
         float(min_temp_3d),
         float(dry_days_next_7)
